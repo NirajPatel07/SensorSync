@@ -1,0 +1,62 @@
+version: "3"
+services:
+  mqtt-broker:
+    image: toke/mosquitto
+    container_name: mqtt-broker
+    ports:
+      - 1883:1883
+    restart: unless-stopped
+
+  redis:
+    image: redis
+    container_name: redis
+    ports:
+      - 6379:6379
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    ports:
+      - 27017:27017
+    restart: unless-stopped
+
+  mqtt-publisher:
+    build:
+      context: ./MQTT_Publisher
+      dockerfile: Dockerfile
+    container_name: mqtt-publisher
+    depends_on:
+      - mqtt-broker
+      - redis
+      - mongodb
+    command: ["python", "mqtt_publisher.py"]
+
+  mqtt-subscriber:
+    build:
+      context: ./MQTT_Subscriber
+      dockerfile: Dockerfile
+    container_name: mqtt-subscriber
+    depends_on:
+      - mqtt-broker
+      - redis
+      - mongodb
+    command: ["python", "mqtt_subscriber.py"]
+
+  fast-api:
+    build:
+      context: ./FastAPI_Endpoints
+      dockerfile: Dockerfile
+    container_name: fast-api
+    depends_on:
+      - mqtt-broker
+      - redis
+      - mongodb
+      - mqtt-publisher
+      - mqtt-subscriber
+    ports:
+      - 8000:8000
+    command: [ "python", "sensor_api.py" ]
+
+networks:
+  my-network:
